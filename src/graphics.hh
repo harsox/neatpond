@@ -70,14 +70,14 @@ void drawNeuron(SDL_Renderer* renderer, Neuron& neuron, int x, int y, int size) 
 }
 
 class Renderer {
-  private:
+private:
   SDL_Window* window;
   SDL_Renderer* renderer;
   map<string, Sprite*> sprites;
   int windowWidth;
   int windowHeight;
 
-  public:
+public:
   ~Renderer() {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

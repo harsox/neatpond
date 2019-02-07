@@ -20,7 +20,7 @@ struct Genome {
       childGenes.push_back(i > midpoint ? genes[i] : partner.genes[i]);
     return childGenes;
   }
-  virtual void begin() { };
+  virtual void reset() { };
   virtual void update() { };
   virtual float fitness() const = 0;
   float calculateFitness() {
@@ -44,11 +44,11 @@ struct Population {
       }
       genomes.push_back(T(genes));
     }
-    begin();
+    reset();
   }
 
-  void begin() {
-    for (auto& genome : genomes) { genome.begin(); }
+  void reset() {
+    for (auto& genome : genomes) { genome.reset(); }
   }
 
   float reproduce(vector<T>& genomes, float mutationRate) {

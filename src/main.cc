@@ -9,16 +9,18 @@
 using namespace std;
 
 const char* WINDOW_TITLE = "✿◡ neatpond ◡✿";
-const int WINDOW_WIDTH = 720;
-const int WINDOW_HEIGHT = 720;
+int windowWidth = 720;
+int windowHeight = 720;
 
 int main() {
+  srand(time(NULL));
+
   SDL_Init(SDL_INIT_EVERYTHING);
 
   Renderer renderer(
     WINDOW_TITLE,
-    WINDOW_WIDTH,
-    WINDOW_HEIGHT,
+    windowWidth,
+    windowHeight,
   {
     {"tail", "res/tail.png", 1.0, 0.5},
     {"body", "res/body.png"},
@@ -52,16 +54,22 @@ int main() {
     auto& foods = pond.getFood();
 
     while (SDL_PollEvent(&event)) {
-      if (event.type == SDL_QUIT) { closed = true; }
-      if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED) {
-        renderer.resize(event.window.data1, event.window.data2);
+      if (event.type == SDL_QUIT) {
+        closed = true;
       }
+
+      if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED) {
+        windowWidth = event.window.data1;
+        windowHeight = event.window.data2;
+        renderer.resize(windowWidth, windowHeight);
+      }
+
       if (event.type == SDL_MOUSEMOTION) {
         int xrel = event.motion.xrel;
         int yrel = event.motion.yrel;
         if (mouseDrag) {
-          camera.x = fmin(WORLD_SIZE - WINDOW_WIDTH, fmax(camera.x - xrel, 0));
-          camera.y = fmin(WORLD_SIZE - WINDOW_HEIGHT, fmax(camera.y - yrel, 0));
+          camera.x = fmin(WORLD_SIZE - windowWidth, fmax(camera.x - xrel, 0));
+          camera.y = fmin(WORLD_SIZE - windowHeight, fmax(camera.y - yrel, 0));
           if (abs(xrel) > 1 || abs(yrel) > 1) {
             mouseDiscardClick = true;
           }
@@ -69,10 +77,12 @@ int main() {
         mouse.x = event.motion.x;
         mouse.y = event.motion.y;
       }
+
       if (event.type == SDL_MOUSEBUTTONDOWN) {
         mouseDrag = true;
         mouseDiscardClick = false;
       }
+
       if (event.type == SDL_MOUSEBUTTONUP) {
         mouseDrag = false;
         if (!mouseDiscardClick) {
@@ -86,8 +96,10 @@ int main() {
           }
         }
       }
+
       if (event.type == SDL_KEYDOWN) {
         auto& key = event.key.keysym.scancode;
+
         if (key == SDL_SCANCODE_ESCAPE) {
           closed = true;
         }

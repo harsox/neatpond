@@ -11,7 +11,7 @@
 using namespace std;
 
 const int WORLD_SIZE = 1500;
-const int GENERATION_LIFESPAN = 800;
+const int GENERATION_LIFESPAN = 1000;
 const int FISH_AMOUNT = 100;
 const float FISH_MAX_SPEED = 5.f;
 const int FISH_NUM_EYES = 8;
@@ -105,7 +105,7 @@ struct Organism : Genome {
     return fitness;
   }
 
-  void begin() override {
+  void reset() override {
     angle = RANDOM_NUM * M_PI * 2;
     position.x = RANDOM_NUM * WORLD_SIZE;
     position.y = RANDOM_NUM * WORLD_SIZE;
@@ -139,7 +139,7 @@ struct Organism : Genome {
     velocity.x = cosf(angle) * speed;
     velocity.y = sinf(angle) * speed;
     position += velocity;
-    clock += 1;
+    clock++;
 
     if (position.x < 0) { position.x = WORLD_SIZE; }
     if (position.y < 0) { position.y = WORLD_SIZE; }
@@ -180,11 +180,13 @@ struct Organism : Genome {
 };
 
 class NeatPond {
-  private:
+private:
     vector<Food> foods;
     Population<Organism> population;
-  public:
-  NeatPond(): population(FISH_AMOUNT, DNA_LENGTH) {}
+public:
+  NeatPond(): population(FISH_AMOUNT, DNA_LENGTH) {
+    reset();
+  }
 
   vector<Food>& getFood() {
     return foods;
@@ -238,7 +240,7 @@ class NeatPond {
     }
 
     for (auto& genome : population.genomes) {
-      genome.begin();
+      genome.reset();
     }
 
     return averageFitness;
