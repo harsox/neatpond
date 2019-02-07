@@ -4,7 +4,8 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
-#include <cassert>
+
+#include "utils.hh"
 
 using namespace std;
 

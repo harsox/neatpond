@@ -3,16 +3,11 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
-#include <iostream>
-#include <algorithm>
 #include <array>
 #include <map>
 
 #include "network.hh"
 
-const char* WINDOW_TITLE = "✿◡ neatpond ◡✿";
-const int WINDOW_WIDTH = 720;
-const int WINDOW_HEIGHT = 720;
 const int HUD_HEIGHT = 100;
 
 struct GenerationData {
@@ -75,20 +70,35 @@ void drawNeuron(SDL_Renderer* renderer, Neuron& neuron, int x, int y, int size) 
 }
 
 class Renderer {
-public:
+  private:
+  SDL_Window* window;
+  SDL_Renderer* renderer;
+  map<string, Sprite*> sprites;
+  int windowWidth;
+  int windowHeight;
+
+  public:
   ~Renderer() {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
   }
 
-  Renderer(vector<SpriteSource> _sprites) {
-    SDL_CreateWindowAndRenderer(WINDOW_WIDTH, WINDOW_HEIGHT, SDL_WINDOW_RESIZABLE, &window, &renderer);
-    SDL_SetWindowTitle(window, WINDOW_TITLE);
+  Renderer(const char* title, int w, int h, vector<SpriteSource> _sprites) {
+    SDL_CreateWindowAndRenderer(w, h, SDL_WINDOW_RESIZABLE, &window, &renderer);
+    SDL_SetWindowTitle(window, title);
+
+    windowWidth = w;
+    windowHeight = h;
 
     for (auto& s : _sprites) {
       auto* sprite = new Sprite(renderer, s);
       sprites.insert(make_pair(s.identifier, sprite));
     }
+  }
+
+  void resize(int w, int h) {
+    windowWidth = w;
+    windowHeight = h;
   }
 
   void drawSprite(const string& id, int x, int y, float angle = .0f, int r = 255, int g = 255, int b = 255) {
@@ -103,10 +113,16 @@ public:
     SDL_RenderClear(renderer);
   }
 
-  void drawChart(const vector<GenerationData>& data, float maxFitness) {
-    int chartTop = WINDOW_HEIGHT - HUD_HEIGHT;
-    int chartWidth = WINDOW_WIDTH / 2;
+  void drawChart(
+    const vector<float>& averageFitnesses,
+    const vector<array<float, 3>>& averageColors,
+    float maxFitness
+  ) {
+    assert(averageFitnesses.size() == averageColors.size());
+
+    int chartWidth = windowWidth / 2;
     int chartHeight = HUD_HEIGHT;
+    int chartTop = windowHeight - HUD_HEIGHT;
     int chartMargin = 8;
     int dataChunkSize = 100;
     int barMargin = chartMargin + 2;
@@ -117,20 +133,21 @@ public:
       chartWidth - chartMargin * 2,
       chartHeight - chartMargin * 2
     };
+
     SDL_SetRenderDrawColor(renderer, 255, 250, 244, 255);
     SDL_RenderFillRect(renderer, &chart);
 
-    int offset = max(0, int(data.size() - dataChunkSize));
-    int length = min(dataChunkSize, int(data.size()));
+    int offset = max(0, int(averageFitnesses.size() - dataChunkSize));
+    int length = min(dataChunkSize, int(averageFitnesses.size()));
 
-    vector<GenerationData> subData(
-      data.cbegin() + offset,
-      data.cbegin() + offset + length
+    vector<float> subData(
+      averageFitnesses.cbegin() + offset,
+      averageFitnesses.cbegin() + offset + length
     );
 
     for (int i = 0; i < subData.size(); i++) {
-      auto fitness = subData[i].averageFitness;
-      auto color = subData[i].averageColor;
+      auto fitness = averageFitnesses[i];
+      auto color = averageColors[i];
       float value = fitness / (maxFitness > 0 ? maxFitness : 1);
       int barHeight = chartHeight * value;
       int r = color[0] * 255;
@@ -154,14 +171,14 @@ public:
     vector<Layer> layers = net.getLayers();
     int numLayers = layers.size();
 
-    int graphWidth = WINDOW_WIDTH / 2;
+    int graphWidth = windowWidth / 2;
     int graphHeight = 120;
     int nodeSize = 8;
     int nodeSize_2 = 4;
     int nodeSpacing = nodeSize * 1.75;
     int layerSpacing = graphWidth / (numLayers + 1);
-    int xOffset = WINDOW_WIDTH / 2;//96 + (graphWidth - numLayers * layerSpacing) / 2;
-    int yOffset = WINDOW_HEIGHT - graphHeight;
+    int xOffset = windowWidth / 2;//96 + (graphWidth - numLayers * layerSpacing) / 2;
+    int yOffset = windowHeight - graphHeight;
 
     for (int l = 0; l < numLayers; l++ ) {
       Layer &layer = layers[l];
@@ -190,11 +207,6 @@ public:
   void present() {
     SDL_RenderPresent(renderer);
   }
-
-private:
-  SDL_Window* window;
-  SDL_Renderer* renderer;
-  map<string, Sprite*> sprites;
 };
 
 

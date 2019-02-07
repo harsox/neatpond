@@ -1,3 +1,6 @@
+#ifndef _math_h
+#define _math_h
+
 struct Vector2D {
   float x;
   float y;
@@ -83,3 +86,5 @@ bool lineCircleCollide(const Vector2D& a, const Vector2D& b, const Vector2D& cir
 
   return col && pLen2 <= dLen2 && (px * dx + py * dy) >= 0;
 }
+
+#endif
