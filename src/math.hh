@@ -16,6 +16,11 @@ struct Vector2D {
   }
 };
 
+float modAngle(float angle) {
+  float pi2 = M_PI * 2;
+  return angle - pi2 * floor(angle / pi2);
+}
+
 bool pointCircleCollision(const Vector2D& point, const Vector2D& circle, float r) {
   if (r == 0) { return false; }
   float dx = circle.x - point.x;

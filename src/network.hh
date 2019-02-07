@@ -8,6 +8,8 @@
 
 using namespace std;
 
+const float WEIGHT_RANGE = 10.0;
+
 double sigmoid(double x) {
   return 1.f / (1.f + exp(-x));
 }
@@ -27,7 +29,7 @@ public:
     auto sum = 0.f;
     // iter through the neurons in the previous layer
     // and add their output times connection weight to sum
-    for (auto n(0); n < previousLayer.size(); ++n) {
+    for (auto n = 0; n < previousLayer.size(); ++n) {
       sum += previousLayer[n].output * previousLayer[n].connectionWeights[index];
     }
     output = sigmoid(sum);
@@ -35,8 +37,8 @@ public:
 
   void setConnectionWeights(vector<double> &weights) {
     assert(weights.size() >= connectionWeights.size());
-    for (auto c(0); c < connectionWeights.size(); ++c) {
-      connectionWeights[c] = -1 + weights.back() * 2;
+    for (auto c = 0; c < connectionWeights.size(); ++c) {
+      connectionWeights[c] = (-1 + weights.back() * 2) * WEIGHT_RANGE;
       weights.pop_back();
     }
   }
@@ -87,6 +89,7 @@ public:
       }
     }
   }
+
   void setWeights(vector<double> weights) {
     for (int l = 0; l < layers.size() - 1; l++) {
       for (int n = 0; n < layers[l].size(); n++) {
