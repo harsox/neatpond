@@ -5,6 +5,9 @@ struct Vector2D {
   float x;
   float y;
 
+  Vector2D(float x, float y): x(x), y(y) { };
+  Vector2D(): Vector2D(0.0, 0.0) {};
+
   void operator += (const Vector2D& other) {
     x += other.x;
     y += other.y;
@@ -24,36 +27,34 @@ float modAngle(float angle) {
   return angle - pi2 * floor(angle / pi2);
 }
 
-bool pointCircleCollision(const Vector2D& point, const Vector2D& circle, float r) {
+bool pointCircleCollision(float px, float py, float cx, float cy, float r) {
   if (r == 0) { return false; }
-  float dx = circle.x - point.x;
-  float dy = circle.y - point.y;
+  float dx = cx - px;
+  float dy = cy - py;
   return dx * dx + dy * dy <= r * r;
 }
 
-bool lineCircleCollide(const Vector2D& a, const Vector2D& b, const Vector2D& circle, float radius, Vector2D* nearest = nullptr) {
+bool lineCircleCollide(
+  float x1, float y1, float x2, float y2,
+  float cx, float cy,
+  float radius,
+  Vector2D* nearest = nullptr
+) {
   // check to see if start or end points lie within circle
-  if (pointCircleCollision(a, circle, radius)) {
+  if (pointCircleCollision(x1, y1, cx, cy, radius)) {
     if (nearest != nullptr) {
-      nearest->x = a.x;
-      nearest->y = a.y;
+      nearest->x = x1;
+      nearest->y = y1;
     }
     return true;
   }
-  if (pointCircleCollision(b, circle, radius)) {
+  if (pointCircleCollision(x2, y2, cx, cy, radius)) {
     if (nearest != nullptr) {
-      nearest->x = a.x;
-      nearest->y = a.y;
+      nearest->x = x1;
+      nearest->y = y1;
     }
     return true;
   }
-
-  float x1 = a.x;
-  float y1 = a.y;
-  float x2 = b.x;
-  float y2 = b.y;
-  float cx = circle.x;
-  float cy = circle.y;
 
   // vector d
   float dx = x2 - x1;
@@ -64,7 +65,7 @@ bool lineCircleCollide(const Vector2D& a, const Vector2D& b, const Vector2D& cir
   float lcy = cy - y1;
 
   // project lc onto d, resulting in vector p
-  float dLen2 = dx * dx + dy * dy; //len2 of d
+  float dLen2 = dx * dx + dy * dy; // len2 of d
   float px = dx;
   float py = dy;
   if (dLen2 > 0) {
@@ -73,7 +74,8 @@ bool lineCircleCollide(const Vector2D& a, const Vector2D& b, const Vector2D& cir
     py *= dp;
   }
 
-  Vector2D nearestTmp = {x1 + px, y1 + py};
+  int tmpNearestX = x1 + px;
+  int tmpNearestY = y1 + py;
 
   if (nearest != nullptr) {
     nearest->x = x1 + px;
@@ -82,7 +84,7 @@ bool lineCircleCollide(const Vector2D& a, const Vector2D& b, const Vector2D& cir
 
   // len2 of p
   float pLen2 = px * px + py * py;
-  bool col = pointCircleCollision(nearestTmp, circle, radius);
+  bool col = pointCircleCollision(tmpNearestX, tmpNearestY, cx, cy, radius);
 
   return col && pLen2 <= dLen2 && (px * dx + py * dy) >= 0;
 }

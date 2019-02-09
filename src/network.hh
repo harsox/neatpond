@@ -19,7 +19,14 @@ class Neuron;
 using Layer = vector<Neuron>;
 
 class Neuron {
+private:
+  unsigned index;
+  double output;
+  vector<double> connectionWeights;
+
 public:
+  ~Neuron() { }
+
   Neuron(unsigned index, unsigned numOutputs) : index (index) {
     for (auto i(0); i < numOutputs; i++) {
       // create a new connection with a random weight
@@ -46,14 +53,14 @@ public:
   void setOutput(double i_output) { output = i_output; }
   double getOutput() const { return output; }
   vector<double> getConnectionWeights() const { return connectionWeights; }
-private:
-  unsigned index;
-  double output;
-  vector<double> connectionWeights;
 };
 
 class Network {
+private:
+  vector<Layer> layers;
 public:
+  ~Network() { }
+
   Network(vector<unsigned> topology) {
     auto numLayers = topology.size();
     for (int l = 0; l < numLayers; l++) {
@@ -69,6 +76,7 @@ public:
       layers.back().back().setOutput(1.f);
     }
   }
+
   void feedForward(vector<double> &input) {
     Layer &inputLayer = layers[0];
     // make sure that the input has the same number of
@@ -98,15 +106,15 @@ public:
       }
     }
   }
+
   void getResults(vector<double> &results) const {
     results.clear();
     for (int n = 0; n < layers.back().size() - 1; ++n) {
       results.push_back(layers.back()[n].getOutput());
     }
   }
+
   vector<Layer>& getLayers() { return layers; };
-private:
-  vector<Layer> layers;
 };
 
 #endif

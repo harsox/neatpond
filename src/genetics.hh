@@ -16,8 +16,9 @@ struct Genome {
   DNA crossOver(Genome& partner) const {
     DNA childGenes;
     int midpoint = rand() % genes.size();
-    for (auto i = 0; i < genes.size(); i++)
+    for (auto i = 0; i < genes.size(); i++) {
       childGenes.push_back(i > midpoint ? genes[i] : partner.genes[i]);
+    }
     return childGenes;
   }
   virtual void reset() { };

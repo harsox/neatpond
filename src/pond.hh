@@ -10,15 +10,16 @@
 
 using namespace std;
 
-const int WORLD_SIZE = 1500;
-const int GENERATION_LIFESPAN = 1000;
+const int WORLD_SIZE = 1000;
+const int GRID_SIZE = 10;
+const int GENERATION_LIFESPAN = 800;
 const int FISH_AMOUNT = 100;
-const float FISH_MAX_SPEED = 5.f;
-const int FISH_NUM_EYES = 8;
-const int FOOD_AMOUNT = 200;
+const float FISH_MAX_SPEED = 5.0;
+const int FISH_NUM_EYES = 10;
+const int FOOD_AMOUNT = 100;
 const float FOOD_RESPAWN_RATE = 0.05;
 const float FOOD_EAT_DIFFICULTY = 0.0;
-const float MUTATION_RATE = .005f;
+const float MUTATION_RATE = 0.005;
 const int HIDDEN_LAYERS = 1;
 const int HIDDEN_NODES = 2;
 
@@ -61,13 +62,20 @@ const int DNA_LENGTH =
   ((HIDDEN_NODES + 1) * NUM_OUTPUTS) +
   ((HIDDEN_NODES + 1) * HIDDEN_NODES * (HIDDEN_LAYERS - 1));
 
+int getMapGrid(float x, float y) {
+  int xx = floor(x / (WORLD_SIZE / GRID_SIZE));
+  int yy = floor(y / (WORLD_SIZE / GRID_SIZE));
+  return xx + GRID_SIZE * yy;
+}
+
 struct Food {
   Vector2D position;
   bool eaten = false;
 };
 
 struct Organism : Genome {
-  Network* brain;
+  Network brain;
+
   vector<double> input;
   vector<double> output;
 
@@ -81,15 +89,19 @@ struct Organism : Genome {
   float speed = 0.f;
   float clock = 0.f;
   float energy = 1000.f;
+  bool dead = false;
 
-  Organism(DNA genes) : Genome(genes) {
+  ~Organism() { }
+
+  Organism(DNA genes) : Genome(genes),
+    brain({NUM_INPUTS, HIDDEN_NODES, NUM_OUTPUTS})
+  {
     vector<double> weightGenes(
       genes.cbegin() + NUM_TRAITS,
       genes.cend()
     );
 
-    brain = new Network({NUM_INPUTS, HIDDEN_NODES, NUM_OUTPUTS});
-    brain->setWeights(weightGenes);
+    brain.setWeights(weightGenes);
 
     fov = genes[TRAIT_FOV] * M_PI;
     sightLength = 300;
@@ -113,17 +125,19 @@ struct Organism : Genome {
     clock = 0.f;
   }
 
-  void eat() {
-    if (energy > 0.0 && clock <= GENERATION_LIFESPAN) {
+  bool eat() {
+    if (dead) { return false; }
+    if (clock <= GENERATION_LIFESPAN) {
       foodCollected++;
       energy += 100.0;
     }
+    return true;
   }
 
   void update() override {
-    if (energy <= 0.0) { return; }
-    brain->feedForward(input);
-    brain->getResults(output);
+    if (dead) { return; }
+    brain.feedForward(input);
+    brain.getResults(output);
 
     float turnSpeed = output[OUTPUT_DIRECTION] * 2.0 -1.0;
     float targetSpeed = output[OUTPUT_SPEED] * FISH_MAX_SPEED;
@@ -145,22 +159,29 @@ struct Organism : Genome {
     if (position.y < 0) { position.y = WORLD_SIZE; }
     if (position.x > WORLD_SIZE) { position.x = 0; }
     if (position.y > WORLD_SIZE) { position.y = 0; }
+    if (energy <= 0.0) {
+      dead = true;
+    }
   }
 
   void perceive(const vector<Food>& foods) {
-    if (energy <= 0.0) { return; }
+    if (dead) { return; }
     for (int i = 0; i < FISH_NUM_EYES; i++) {
       float maxStrength = 0.f;
       float sensorDirection = angle + (-FISH_NUM_EYES / 2 + i) * (fov / float(FISH_NUM_EYES));
       for (auto& food : foods) {
-        Vector2D line = {
-          cosf(sensorDirection) * float(sightLength),
-          sinf(sensorDirection) * float(sightLength)
-        };
-        auto diff = position - food.position;
-        if (fabs(diff.x) < sightLength && fabs(diff.y) < sightLength) {
-          float dist = sqrtf(diff.x * diff.x + diff.y * diff.y);
-          if (dist < sightLength && lineCircleCollide(position, position + line, food.position, 16)) {
+        float x1 = position.x;
+        float y1 = position.y;
+        float cx = food.position.x;
+        float cy = food.position.y;
+        float diffx = x1 - cx;
+        float diffy = y1 - cy;
+
+        if (fabs(diffx) < sightLength && fabs(diffy) < sightLength) {
+          float x2 = x1 + cosf(sensorDirection) * sightLength;
+          float y2 = y1 + sinf(sensorDirection) * sightLength;
+          if (lineCircleCollide(x1, y1, x2, y2, cx, cy, 16)) {
+            float dist = sqrtf(diffx * diffx + diffy * diffy);
             float strength = 1 - dist / float(sightLength);
             if (strength > maxStrength) {
               maxStrength = strength;
@@ -181,8 +202,9 @@ struct Organism : Genome {
 
 class NeatPond {
 private:
-    vector<Food> foods;
-    Population<Organism> population;
+  Population<Organism> population;
+  vector<Food> foods;
+
 public:
   NeatPond(): population(FISH_AMOUNT, DNA_LENGTH) {
     reset();
@@ -197,12 +219,13 @@ public:
   };
 
   void spawnFood(Vector2D position) {
-    Food food {position};
+    Food food { position };
     foods.push_back(food);
   }
 
   void update() {
     for (auto& genome : population.genomes) {
+
       genome.perceive(foods);
       genome.update();
 
@@ -213,10 +236,11 @@ public:
         float distY = mouthY - food.position.y;
         float distance = sqrt(distX * distX + distY * distY);
         if (distance <= 16 && bool(RANDOM_NUM > FOOD_EAT_DIFFICULTY)) {
-          food.eaten = bool(RANDOM_NUM < FOOD_RESPAWN_RATE);
-          food.position.x = RANDOM_NUM * WORLD_SIZE;
-          food.position.y = RANDOM_NUM * WORLD_SIZE;
-          genome.eat();
+          if (genome.eat()) {
+            food.eaten = bool(RANDOM_NUM > FOOD_RESPAWN_RATE);
+            food.position.x = RANDOM_NUM * WORLD_SIZE;
+            food.position.y = RANDOM_NUM * WORLD_SIZE;
+          }
         }
       }
     }
@@ -232,6 +256,7 @@ public:
     auto averageFitness = population.reproduce(population.genomes, MUTATION_RATE);
 
     foods.clear();
+
     for (int i = FOOD_AMOUNT; i--;) {
       spawnFood({
         float(RANDOM_NUM * WORLD_SIZE),

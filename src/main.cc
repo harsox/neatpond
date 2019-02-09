@@ -9,13 +9,31 @@
 using namespace std;
 
 const char* WINDOW_TITLE = "✿◡ neatpond ◡✿";
-int windowWidth = 720;
+int windowWidth = 960;
 int windowHeight = 720;
 
-int main() {
-  srand(time(NULL));
+void runHeadless() {
+  int t = 0;
+  int g = 0;
 
+  NeatPond pond;
+
+  while (true) {
+    pond.update();
+    if (++t > GENERATION_LIFESPAN) {
+      float f = pond.reset();
+      cout << "generation: " << g << endl;
+      cout << "fitness: " << f << endl;
+      t = 0;
+      g++;
+    }
+  }
+}
+
+void runGUI() {
   SDL_Init(SDL_INIT_EVERYTHING);
+
+  NeatPond pond;
 
   Renderer renderer(
     WINDOW_TITLE,
@@ -29,7 +47,6 @@ int main() {
     {"ded", "res/ded.png"},
   });
 
-  NeatPond pond;
   int speed = SPEED_NORMAL;
   int numGenerations = 0;
   int generationTime = 0;
@@ -42,6 +59,7 @@ int main() {
   auto timeStart = SDL_GetTicks();
   Vector2D camera;
   Vector2D mouse;
+  Vector2D* followPosition = nullptr;
   bool mouseDrag = false;
   bool mouseDiscardClick = false;
   int selectedGenome = -1;
@@ -51,13 +69,16 @@ int main() {
     SDL_Event event;
 
     auto& genomes = pond.getGenomes();
-    auto& foods = pond.getFood();
+
+    if (followPosition != nullptr) {
+      camera.x = followPosition->x - windowWidth / 2;
+      camera.y = followPosition->y - windowHeight / 2;
+    }
 
     while (SDL_PollEvent(&event)) {
       if (event.type == SDL_QUIT) {
         closed = true;
       }
-
       if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED) {
         windowWidth = event.window.data1;
         windowHeight = event.window.data2;
@@ -72,6 +93,7 @@ int main() {
           camera.y = fmin(WORLD_SIZE - windowHeight, fmax(camera.y - yrel, 0));
           if (abs(xrel) > 1 || abs(yrel) > 1) {
             mouseDiscardClick = true;
+            followPosition = nullptr;
           }
         }
         mouse.x = event.motion.x;
@@ -87,11 +109,13 @@ int main() {
         mouseDrag = false;
         if (!mouseDiscardClick) {
           selectedGenome = -1;
+          followPosition = nullptr;
           for (int i = genomes.size(); i--;) {
             auto& genome = genomes[i];
             auto dist = genome.position - (mouse + camera);
             if (fabs(dist.x) < 32 && fabs(dist.y) < 32) {
               selectedGenome = i;
+              followPosition = &genome.position;
             }
           }
         }
@@ -155,52 +179,33 @@ int main() {
       renderer.color(0, 0, 0);
       renderer.clear();
 
-      SDL_Rect background;
-      background.x = -camera.x;
-      background.y = -camera.y;
-      background.w = WORLD_SIZE;
-      background.h = WORLD_SIZE;
+      renderer.translate(-camera.x, -camera.y);
 
-      for (int i = genomes.size(); i--;) {
-        auto &genome = genomes[i];
-        auto genes = genome.genes;
-        int r = genes[TRAIT_RED] * 255;
-        int g = genes[TRAIT_GREEN] * 255;
-        int b = genes[TRAIT_BLUE] * 255;
-        float x = genome.position.x - camera.x;
-        float y = genome.position.y - camera.y;
-        float tailAngle = sin((float)generationTime / 2) * 0.25;
-        float bodyAngle = sin((float)generationTime / 10) * 0.2;
-
-        if (i == selectedGenome) {
-          for (int i = 0; i < FISH_NUM_EYES; i++) {
-            float strength = genome.input[i];
-            float sensorDirection = genome.angle + (-FISH_NUM_EYES / 2 + i) * (genome.fov / (float)FISH_NUM_EYES);
-            float r = strength > .5 ? 1 - 2 * (strength - .5) : 1.0;
-            float g = strength > .5 ? 1 : 2 * strength;
-            float x2 = x + cosf(sensorDirection) * 60;
-            float y2 = y + sinf(sensorDirection) * 60;
-            renderer.color(r * 255, g * 255, 125);
-            renderer.drawLine(x, y, x2, y2);
+      int chunkSize = WORLD_SIZE / GRID_SIZE;
+      for (int x = 0; x < GRID_SIZE; x++) {
+        for (int y = 0; y < GRID_SIZE; y++) {
+          if ((x + y) % 2 == 0) {
+            renderer.color(3, 5, 25);
+            renderer.rect(x * chunkSize, y * chunkSize, chunkSize, chunkSize);
           }
         }
+      }
 
-        if (genome.energy > 0.0) {
-          renderer.drawSprite("tail", x - cos(genome.angle) * 12, y - sin(genome.angle) * 12, genome.angle + tailAngle, r, g, b);
-          renderer.drawSprite("body", x, y, genome.angle);
-          renderer.drawSprite("stripes", x, y, genome.angle, r, g, b);
-        } else {
-          renderer.drawSprite("ded", x, y);
+      for (int i = genomes.size(); i--;) {
+        renderer.drawFish(genomes[i], i == selectedGenome);
+      }
+
+      for (int i = GRID_SIZE * GRID_SIZE; i--;) {
+        auto& foods = pond.getFood();
+        for (auto& food : foods) {
+          renderer.drawSprite("food", food.position.x, food.position.y);
         }
       }
 
-      for (auto& food : foods) {
-        renderer.drawSprite("food", food.position.x - camera.x, food.position.y - camera.y);
-      }
-
+      renderer.translate(0, 0);
       if (displayHud) {
         if (selectedGenome >= 0 && selectedGenome < genomes.size()) {
-          renderer.drawNetwork(*genomes[selectedGenome].brain);
+          renderer.drawNetwork(genomes[selectedGenome].brain);
         }
         renderer.drawChart(averageFitnesses, averageColors, maxFitness);
       }
@@ -214,6 +219,17 @@ int main() {
   }
 
   SDL_Quit();
+}
+
+int main(int argc, char **argv) {
+  srand(time(NULL));
+
+  if (argc > 1 && strcmp(argv[1], "-headless") == 0) {
+    runHeadless();
+    return 0;
+  }
+
+  runGUI();
 
   return 0;
 }

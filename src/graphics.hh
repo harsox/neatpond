@@ -7,6 +7,7 @@
 #include <map>
 
 #include "network.hh"
+#include "pond.hh"
 
 const int HUD_HEIGHT = 100;
 
@@ -74,6 +75,7 @@ private:
   SDL_Window* window;
   SDL_Renderer* renderer;
   map<string, Sprite*> sprites;
+
   int windowWidth;
   int windowHeight;
 
@@ -101,6 +103,15 @@ public:
     windowHeight = h;
   }
 
+  void translate(int x, int y) {
+    SDL_Rect view;
+    view.x = x;
+    view.y = y;
+    view.w = windowWidth - x;
+    view.h = windowHeight - y;
+    SDL_RenderSetViewport(renderer, &view);
+  }
+
   void drawSprite(const string& id, int x, int y, float angle = .0f, int r = 255, int g = 255, int b = 255) {
     sprites[id]->draw(renderer, x, y, angle, r, g, b);
   }
@@ -109,8 +120,45 @@ public:
     SDL_SetRenderDrawColor(renderer, r, g, b, 255);
   }
 
+  void rect(int x, int y, int w, int h) {
+    SDL_Rect rect { x, y, w, h};
+    SDL_RenderFillRect(renderer, &rect);
+  }
+
   void clear() {
     SDL_RenderClear(renderer);
+  }
+
+  void drawFish(const Organism& genome, bool drawSensors) {
+    auto genes = genome.genes;
+    int r = genes[TRAIT_RED] * 255;
+    int g = genes[TRAIT_GREEN] * 255;
+    int b = genes[TRAIT_BLUE] * 255;
+    float x = genome.position.x;
+    float y = genome.position.y;
+    float tailAngle = sin((float)0.0 / 2) * 0.25;
+    float bodyAngle = sin((float)0.0 / 10) * 0.2;
+
+    if (drawSensors) {
+      for (int i = 0; i < FISH_NUM_EYES; i++) {
+        float strength = genome.input[i];
+        float sensorDirection = genome.angle + (-FISH_NUM_EYES / 2 + i) * (genome.fov / (float)FISH_NUM_EYES);
+        float r = strength > .5 ? 1 - 2 * (strength - .5) : 1.0;
+        float g = strength > .5 ? 1 : 2 * strength;
+        float x2 = x + cosf(sensorDirection) * 60;
+        float y2 = y + sinf(sensorDirection) * 60;
+        color(r * 255, g * 255, 125);
+        drawLine(x, y, x2, y2);
+      }
+    }
+
+    if (!genome.dead) {
+      drawSprite("tail", x - cos(genome.angle) * 12, y - sin(genome.angle) * 12, genome.angle + tailAngle, r, g, b);
+      drawSprite("body", x, y, genome.angle);
+      drawSprite("stripes", x, y, genome.angle, r, g, b);
+    } else {
+      drawSprite("ded", x, y);
+    }
   }
 
   void drawChart(
@@ -171,14 +219,14 @@ public:
     vector<Layer> layers = net.getLayers();
     int numLayers = layers.size();
 
-    int graphWidth = windowWidth / 2;
+    int graphWidth = 250;
     int graphHeight = 120;
     int nodeSize = 8;
     int nodeSize_2 = 4;
     int nodeSpacing = nodeSize * 1.75;
     int layerSpacing = graphWidth / (numLayers + 1);
-    int xOffset = windowWidth / 2;//96 + (graphWidth - numLayers * layerSpacing) / 2;
-    int yOffset = windowHeight - graphHeight;
+    int xOffset = (graphWidth - numLayers * layerSpacing) / 2;
+    int yOffset = 120;
 
     for (int l = 0; l < numLayers; l++ ) {
       Layer &layer = layers[l];
