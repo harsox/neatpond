@@ -54,8 +54,8 @@ struct Population {
 
   float reproduce(vector<T>& genomes, float mutationRate) {
     auto numGenomes = genomes.size();
-    auto fitnessSum = .0f;
-    auto averageFitness = .0f;
+    auto fitnessSum = 0.0f;
+    auto averageFitness = 0.0f;
 
     vector<T> matingPool;
 

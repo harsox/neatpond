@@ -188,14 +188,9 @@ public:
     int offset = max(0, int(averageFitnesses.size() - dataChunkSize));
     int length = min(dataChunkSize, int(averageFitnesses.size()));
 
-    vector<float> subData(
-      averageFitnesses.cbegin() + offset,
-      averageFitnesses.cbegin() + offset + length
-    );
-
-    for (int i = 0; i < subData.size(); i++) {
-      auto fitness = averageFitnesses[i];
-      auto color = averageColors[i];
+    for (int i = 0; i < length; i++) {
+      auto fitness = averageFitnesses[offset + i];
+      auto color = averageColors[offset + i];
       float value = fitness / (maxFitness > 0 ? maxFitness : 1);
       int barHeight = chartHeight * value;
       int r = color[0] * 255;

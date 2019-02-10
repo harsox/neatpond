@@ -57,7 +57,7 @@ void runGUI() {
   bool closed = false;
   bool displayHud = true;
   auto timeStart = SDL_GetTicks();
-  Vector2D camera;
+  Vector2D camera((WORLD_SIZE - windowWidth) / 2, (WORLD_SIZE - windowHeight) / 2);
   Vector2D mouse;
   Vector2D* followPosition = nullptr;
   bool mouseDrag = false;
@@ -113,7 +113,7 @@ void runGUI() {
           for (int i = genomes.size(); i--;) {
             auto& genome = genomes[i];
             auto dist = genome.position - (mouse + camera);
-            if (fabs(dist.x) < 32 && fabs(dist.y) < 32) {
+            if (fabs(dist.x) < 80 && fabs(dist.y) < 80) {
               selectedGenome = i;
               followPosition = &genome.position;
             }
@@ -181,12 +181,17 @@ void runGUI() {
 
       renderer.translate(-camera.x, -camera.y);
 
-      int chunkSize = WORLD_SIZE / GRID_SIZE;
-      for (int x = 0; x < GRID_SIZE; x++) {
-        for (int y = 0; y < GRID_SIZE; y++) {
+      int chunkSize = GRID_SIZE;
+      for (int x = 0; x < WORLD_CHUNKS; x++) {
+        for (int y = 0; y < WORLD_CHUNKS; y++) {
           if ((x + y) % 2 == 0) {
             renderer.color(3, 5, 25);
-            renderer.rect(x * chunkSize, y * chunkSize, chunkSize, chunkSize);
+            renderer.rect(
+              x * chunkSize,
+              y * chunkSize,
+              chunkSize,
+              chunkSize
+            );
           }
         }
       }
@@ -195,9 +200,9 @@ void runGUI() {
         renderer.drawFish(genomes[i], i == selectedGenome);
       }
 
-      for (int i = GRID_SIZE * GRID_SIZE; i--;) {
-        auto& foods = pond.getFood();
-        for (auto& food : foods) {
+      auto foods = pond.getFood();
+      for (auto& food : foods) {
+        if (selectedGenome == -1 || genomes.at(selectedGenome).canSeeFood(food)) {
           renderer.drawSprite("food", food.position.x, food.position.y);
         }
       }
@@ -222,6 +227,7 @@ void runGUI() {
 }
 
 int main(int argc, char **argv) {
+
   srand(time(NULL));
 
   if (argc > 1 && strcmp(argv[1], "-headless") == 0) {

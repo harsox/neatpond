@@ -9,7 +9,7 @@
 
 using namespace std;
 
-const float WEIGHT_RANGE = 10.0;
+const float WEIGHT_RANGE = 20.0;
 
 double sigmoid(double x) {
   return 1.f / (1.f + exp(-x));
