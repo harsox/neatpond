@@ -166,56 +166,45 @@ struct Organism : Genome {
     }
   }
 
-  float canSeeFood(const Food& food) {
-    for (int i = 0; i < FISH_NUM_EYES; i++) {
-      float maxStrength = 0.f;
-      float sensorDirection = angle + (-FISH_NUM_EYES / 2 + i) * (fov / float(FISH_NUM_EYES));
-      float x1 = position.x;
-      float y1 = position.y;
-      float cx = food.position.x;
-      float cy = food.position.y;
-      float dx = x1 - cx;
-      float dy = y1 - cy;
-
-      if (fabs(dx) < sightLength && fabs(dy) < sightLength) {
-        float x2 = x1 + cosf(sensorDirection) * sightLength;
-        float y2 = y1 + sinf(sensorDirection) * sightLength;
-        if (lineCircleCollide(x1, y1, x2, y2, cx, cy, 16)) {
-          float dist = sqrtf(dx * dx + dy * dy);
-          return 1 - dist / float(sightLength);
-        }
+  float foodSensorStrength(int sensor, const Food& food) {
+    float maxStrength = 0.f;
+    float sensorAngle = angle + (-FISH_NUM_EYES / 2 + sensor) * (fov / float(FISH_NUM_EYES));
+    float x1 = position.x;
+    float y1 = position.y;
+    float cx = food.position.x;
+    float cy = food.position.y;
+    float dx = x1 - cx;
+    float dy = y1 - cy;
+    if (fabs(dx) < sightLength && fabs(dy) < sightLength) {
+      float x2 = x1 + cosf(sensorAngle) * sightLength;
+      float y2 = y1 + sinf(sensorAngle) * sightLength;
+      if (lineCircleCollide(x1, y1, x2, y2, cx, cy, 16)) {
+        float dist = sqrtf(dx * dx + dy * dy);
+        return 1 - dist / float(sightLength);
       }
     }
     return 0.0;
   }
 
+  bool canSeeFood(const Food& food) {
+    for (int sensor = 0; sensor < FISH_NUM_EYES; sensor++) {
+      if (foodSensorStrength(sensor, food) > 0.0) { return true; }
+    }
+    return false;
+  }
+
   void perceive(const vector<Food>& foods) {
     if (dead) { return; }
 
-    for (int i = 0; i < FISH_NUM_EYES; i++) {
-      float maxStrength = 0.f;
-      float sensorDirection = angle + (-FISH_NUM_EYES / 2 + i) * (fov / float(FISH_NUM_EYES));
+    for (int sensor = 0; sensor < FISH_NUM_EYES; sensor++) {
+      float maxStrength = 0.0;
       for (auto& food : foods) {
-        float x1 = position.x;
-        float y1 = position.y;
-        float cx = food.position.x;
-        float cy = food.position.y;
-        float dx = x1 - cx;
-        float dy = y1 - cy;
-
-        if (fabs(dx) < sightLength && fabs(dy) < sightLength) {
-          float x2 = x1 + cosf(sensorDirection) * sightLength;
-          float y2 = y1 + sinf(sensorDirection) * sightLength;
-          if (lineCircleCollide(x1, y1, x2, y2, cx, cy, 16)) {
-            float dist = sqrtf(dx * dx + dy * dy);
-            float strength = 1 - dist / float(sightLength);
-            if (strength > maxStrength) {
-              maxStrength = strength;
-            }
-          }
+        float strength = foodSensorStrength(sensor, food);
+        if (strength > maxStrength) {
+          maxStrength = strength;
         }
       }
-      input[INPUT_SENSOR_FIRST + i] = maxStrength;
+      input[INPUT_SENSOR_FIRST + sensor] = maxStrength;
     }
 
     input[INPUT_DIRECTION] = modAngle(angle) / (M_PI * 2);
@@ -239,7 +228,6 @@ public:
   vector<Food>& getFood() {
     return foods;
   };
-
 
   vector<Organism>& getGenomes() {
     return population.genomes;
@@ -283,6 +271,7 @@ public:
 
   float reset() {
     auto fitness = population.reproduce(population.genomes, MUTATION_RATE);
+    foods.clear();
     for (int i = FOOD_AMOUNT; i--;) {
       spawnFood({
         float(RANDOM_NUM * WORLD_SIZE),
@@ -292,7 +281,6 @@ public:
     for (auto& genome : population.genomes) {
       genome.reset();
     }
-    foods.clear();
     return fitness;
   }
 };
