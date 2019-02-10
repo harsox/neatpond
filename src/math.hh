@@ -1,6 +1,8 @@
 #ifndef _math_h
 #define _math_h
 
+#include <cmath>
+
 struct Vector2D {
   float x;
   float y;

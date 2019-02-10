@@ -114,7 +114,9 @@ public:
     }
   }
 
-  vector<Layer>& getLayers() { return layers; };
+  const vector<Layer>& getLayers() const {
+    return layers;
+  };
 };
 
 #endif

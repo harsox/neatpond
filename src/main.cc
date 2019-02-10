@@ -1,10 +1,10 @@
-#include <SDL2/SDL.h>
-
 #include "math.hh"
 #include "network.hh"
 #include "genetics.hh"
 #include "graphics.hh"
 #include "pond.hh"
+
+#include <SDL2/SDL.h>
 
 using namespace std;
 
@@ -33,19 +33,8 @@ void runHeadless() {
 void runGUI() {
   SDL_Init(SDL_INIT_EVERYTHING);
 
+  Renderer renderer(WINDOW_TITLE, windowWidth, windowHeight);
   NeatPond pond;
-
-  Renderer renderer(
-    WINDOW_TITLE,
-    windowWidth,
-    windowHeight,
-  {
-    {"tail", "res/tail.png", 1.0, 0.5},
-    {"body", "res/body.png"},
-    {"stripes", "res/stripes.png"},
-    {"food", "res/food.png"},
-    {"ded", "res/ded.png"},
-  });
 
   int speed = SPEED_NORMAL;
   int numGenerations = 0;
@@ -59,16 +48,16 @@ void runGUI() {
   auto timeStart = SDL_GetTicks();
   Vector2D camera((WORLD_SIZE - windowWidth) / 2, (WORLD_SIZE - windowHeight) / 2);
   Vector2D mouse;
-  Vector2D* followPosition = nullptr;
+  const Vector2D* followPosition = nullptr;
   bool mouseDrag = false;
   bool mouseDiscardClick = false;
-  int selectedGenome = -1;
+  int selectedFish = -1;
 
   while (!closed) {
     auto now = SDL_GetTicks();
     SDL_Event event;
 
-    auto& genomes = pond.getGenomes();
+    auto& fishes = pond.getFishes();
 
     if (followPosition != nullptr) {
       camera.x = followPosition->x - windowWidth / 2;
@@ -108,13 +97,13 @@ void runGUI() {
       if (event.type == SDL_MOUSEBUTTONUP) {
         mouseDrag = false;
         if (!mouseDiscardClick) {
-          selectedGenome = -1;
+          selectedFish = -1;
           followPosition = nullptr;
-          for (int i = genomes.size(); i--;) {
-            auto& genome = genomes[i];
+          for (int i = fishes.size(); i--;) {
+            auto& genome = fishes[i];
             auto dist = genome.position - (mouse + camera);
             if (fabs(dist.x) < 80 && fabs(dist.y) < 80) {
-              selectedGenome = i;
+              selectedFish = i;
               followPosition = &genome.position;
             }
           }
@@ -143,21 +132,21 @@ void runGUI() {
 
     if (speed != SPEED_NORMAL && ++generationTime >= GENERATION_LIFESPAN) {
       auto averageFitness = pond.reset();
-      auto numGenomes = genomes.size();
+      auto numFishes = fishes.size();
 
       float r = 0.0;
       float g = 0.0;
       float b = 0.0;
 
-      for (auto& genome : genomes) {
+      for (auto& genome : fishes) {
         r += genome.genes[TRAIT_RED];
         g += genome.genes[TRAIT_GREEN];
         b += genome.genes[TRAIT_BLUE];
       }
 
-      r /= float(numGenomes);
-      g /= float(numGenomes);
-      b /= float(numGenomes);
+      r /= float(numFishes);
+      g /= float(numFishes);
+      b /= float(numFishes);
 
       maxFitness = fmax(maxFitness, averageFitness);
       averageFitnesses.push_back(averageFitness);
@@ -196,21 +185,12 @@ void runGUI() {
         }
       }
 
-      for (int i = genomes.size(); i--;) {
-        renderer.drawFish(genomes[i], i == selectedGenome);
-      }
-
-      auto foods = pond.getFood();
-      for (auto& food : foods) {
-        if (selectedGenome == -1 || genomes.at(selectedGenome).canSeeFood(food)) {
-          renderer.drawSprite("food", food.position.x, food.position.y);
-        }
-      }
+      renderer.drawPond(pond, selectedFish);
 
       renderer.translate(0, 0);
       if (displayHud) {
-        if (selectedGenome >= 0 && selectedGenome < genomes.size()) {
-          renderer.drawNetwork(genomes[selectedGenome].brain);
+        if (selectedFish >= 0 && selectedFish < fishes.size()) {
+          renderer.drawNetwork(fishes[selectedFish].brain);
         }
         renderer.drawChart(averageFitnesses, averageColors, maxFitness);
       }
@@ -227,15 +207,11 @@ void runGUI() {
 }
 
 int main(int argc, char **argv) {
-
   srand(time(NULL));
-
   if (argc > 1 && strcmp(argv[1], "-headless") == 0) {
     runHeadless();
-    return 0;
+  } else {
+    runGUI();
   }
-
-  runGUI();
-
   return 0;
 }

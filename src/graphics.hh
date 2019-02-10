@@ -1,42 +1,38 @@
 #ifndef graphics_h
 #define graphics_h
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
-#include <array>
-#include <map>
-
 #include "network.hh"
 #include "pond.hh"
 
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+#include <array>
+
+enum {
+  SPRITE_FISH_BODY,
+  SPRITE_FISH_TAIL,
+  SPRITE_FISH_FIN,
+  SPRITE_FOOD,
+  SPRITE_DEAD,
+  NUM_SPRITE
+};
+
 const int HUD_HEIGHT = 100;
-
-struct GenerationData {
-  float averageFitness;
-  array<float, 3> averageColor;
-};
-
-struct SpriteSource {
-  string identifier;
-  string source;
-  float anchorX = 0.5;
-  float anchorY = 0.5;
-};
 
 struct Sprite {
   SDL_Texture* texture;
   SDL_Rect srcRect;
   SDL_Point anchorPoint;
 
-  Sprite(SDL_Renderer *renderer, const SpriteSource& spr) {
-    texture = IMG_LoadTexture(renderer, spr.source.c_str());
+  Sprite(SDL_Renderer *renderer, const char* source, float anchorX = 0.5, float anchorY = 0.5) {
+    texture = IMG_LoadTexture(renderer, source);
     assert(texture != 0x0);
     SDL_QueryTexture(texture, nullptr, nullptr, &srcRect.w, &srcRect.h);
     assert(srcRect.w && srcRect.h);
     srcRect.x = 0;
     srcRect.y = 0;
-    anchorPoint.x = srcRect.w * spr.anchorX;
-    anchorPoint.y = srcRect.h * spr.anchorY;
+    anchorPoint.x = srcRect.w * anchorX;
+    anchorPoint.y = srcRect.h * anchorY;
   }
 
   void draw(SDL_Renderer *renderer, int x, int y, float angle = .0f, int r = 255, int g = 255, int b = 255) {
@@ -74,8 +70,7 @@ class Renderer {
 private:
   SDL_Window* window;
   SDL_Renderer* renderer;
-  map<string, Sprite*> sprites;
-
+  Sprite* sprites[NUM_SPRITE];
   int windowWidth;
   int windowHeight;
 
@@ -85,17 +80,16 @@ public:
     SDL_DestroyWindow(window);
   }
 
-  Renderer(const char* title, int w, int h, vector<SpriteSource> _sprites) {
+  Renderer(const char* title, int w, int h) {
     SDL_CreateWindowAndRenderer(w, h, SDL_WINDOW_RESIZABLE, &window, &renderer);
     SDL_SetWindowTitle(window, title);
-
     windowWidth = w;
     windowHeight = h;
-
-    for (auto& s : _sprites) {
-      auto* sprite = new Sprite(renderer, s);
-      sprites.insert(make_pair(s.identifier, sprite));
-    }
+    sprites[SPRITE_FISH_BODY] = new Sprite(renderer, "res/body.png");
+    sprites[SPRITE_FISH_TAIL] = new Sprite(renderer, "res/tail.png", 1.0, 0.5);
+    sprites[SPRITE_FISH_FIN] = new Sprite(renderer, "res/fin.png");
+    sprites[SPRITE_FOOD] = new Sprite(renderer, "res/food.png");
+    sprites[SPRITE_DEAD] = new Sprite(renderer, "res/dead.png");
   }
 
   void resize(int w, int h) {
@@ -112,12 +106,8 @@ public:
     SDL_RenderSetViewport(renderer, &view);
   }
 
-  void drawSprite(const string& id, int x, int y, float angle = .0f, int r = 255, int g = 255, int b = 255) {
-    sprites[id]->draw(renderer, x, y, angle, r, g, b);
-  }
-
-  void color(int r, int g, int b) {
-    SDL_SetRenderDrawColor(renderer, r, g, b, 255);
+  void drawSprite(size_t spriteId, int x, int y, float angle = .0f, int r = 255, int g = 255, int b = 255) {
+    sprites[spriteId]->draw(renderer, x, y, angle, r, g, b);
   }
 
   void rect(int x, int y, int w, int h) {
@@ -125,24 +115,51 @@ public:
     SDL_RenderFillRect(renderer, &rect);
   }
 
+  void drawLine(int x1, int y1, int x2, int y2) {
+    SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+  }
+
+  void color(int r, int g, int b) {
+    SDL_SetRenderDrawColor(renderer, r, g, b, 255);
+  }
+
   void clear() {
     SDL_RenderClear(renderer);
   }
 
-  void drawFish(const Organism& genome, bool drawSensors) {
-    auto genes = genome.genes;
+  void present() {
+    SDL_RenderPresent(renderer);
+  }
+
+  void drawPond(const NeatPond& pond, int selectedFish = -1) {
+    auto& fishes = pond.getFishes();
+    auto& foods = pond.getFood();
+
+    for (int i = fishes.size(); i--;) {
+      drawFish(fishes[i], i == selectedFish);
+    }
+
+    for (auto& food : foods) {
+      if (selectedFish == -1 || fishes[selectedFish].canSeeFood(food)) {
+        drawSprite(SPRITE_FOOD, food.position.x, food.position.y);
+      }
+    }
+  }
+
+  void drawFish(const Fish& fish, bool drawSensors) {
+    auto genes = fish.genes;
     int r = genes[TRAIT_RED] * 255;
     int g = genes[TRAIT_GREEN] * 255;
     int b = genes[TRAIT_BLUE] * 255;
-    float x = genome.position.x;
-    float y = genome.position.y;
+    float x = fish.position.x;
+    float y = fish.position.y;
     float tailAngle = sin((float)0.0 / 2) * 0.25;
     float bodyAngle = sin((float)0.0 / 10) * 0.2;
 
     if (drawSensors) {
       for (int i = 0; i < FISH_NUM_EYES; i++) {
-        float strength = genome.input[i];
-        float sensorDirection = genome.angle + (-FISH_NUM_EYES / 2 + i) * (genome.fov / (float)FISH_NUM_EYES);
+        float strength = fish.input[i];
+        float sensorDirection = fish.angle + (-FISH_NUM_EYES / 2 + i) * (fish.fov / (float)FISH_NUM_EYES);
         float r = strength > .5 ? 1 - 2 * (strength - .5) : 1.0;
         float g = strength > .5 ? 1 : 2 * strength;
         float x2 = x + cosf(sensorDirection) * 60;
@@ -152,12 +169,12 @@ public:
       }
     }
 
-    if (!genome.dead) {
-      drawSprite("tail", x - cos(genome.angle) * 12, y - sin(genome.angle) * 12, genome.angle + tailAngle, r, g, b);
-      drawSprite("body", x, y, genome.angle);
-      drawSprite("stripes", x, y, genome.angle, r, g, b);
+    if (!fish.dead) {
+      drawSprite(SPRITE_FISH_TAIL, x - cos(fish.angle) * 12, y - sin(fish.angle) * 12, fish.angle + tailAngle, r, g, b);
+      drawSprite(SPRITE_FISH_BODY, x, y, fish.angle);
+      drawSprite(SPRITE_FISH_FIN, x, y, fish.angle, r, g, b);
     } else {
-      drawSprite("ded", x, y);
+      drawSprite(SPRITE_DEAD, x, y);
     }
   }
 
@@ -206,11 +223,7 @@ public:
     }
   }
 
-  void drawLine(int x1, int y1, int x2, int y2) {
-    SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
-  }
-
-  void drawNetwork(Network& net) {
+  void drawNetwork(const Network& net) {
     vector<Layer> layers = net.getLayers();
     int numLayers = layers.size();
 
@@ -245,10 +258,6 @@ public:
         }
       }
     }
-  }
-
-  void present() {
-    SDL_RenderPresent(renderer);
   }
 };
 

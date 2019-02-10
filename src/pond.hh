@@ -1,12 +1,12 @@
 #ifndef pond_h
 #define pond_h
 
-#include <vector>
-
 #include "utils.hh"
 #include "math.hh"
 #include "genetics.hh"
 #include "network.hh"
+
+#include <vector>
 
 using namespace std;
 
@@ -72,7 +72,7 @@ struct Food {
   bool eaten = false;
 };
 
-struct Organism : Genome {
+struct Fish : Genome {
   Network brain;
 
   vector<double> input;
@@ -91,9 +91,9 @@ struct Organism : Genome {
   float energy = 1000.f;
   bool dead = false;
 
-  ~Organism() { }
+  ~Fish() { }
 
-  Organism(DNA genes):
+  Fish(DNA genes):
     Genome(genes),
     brain({NUM_INPUTS, HIDDEN_NODES, NUM_OUTPUTS})
   {
@@ -166,7 +166,7 @@ struct Organism : Genome {
     }
   }
 
-  float foodSensorStrength(int sensor, const Food& food) {
+  float foodSensorStrength(int sensor, const Food& food) const {
     float maxStrength = 0.f;
     float sensorAngle = angle + (-FISH_NUM_EYES / 2 + sensor) * (fov / float(FISH_NUM_EYES));
     float x1 = position.x;
@@ -186,7 +186,7 @@ struct Organism : Genome {
     return 0.0;
   }
 
-  bool canSeeFood(const Food& food) {
+  bool canSeeFood(const Food& food) const {
     for (int sensor = 0; sensor < FISH_NUM_EYES; sensor++) {
       if (foodSensorStrength(sensor, food) > 0.0) { return true; }
     }
@@ -217,7 +217,7 @@ struct Organism : Genome {
 
 class NeatPond {
 private:
-  Population<Organism> population;
+  Population<Fish> population;
   vector<Food> foods;
 
 public:
@@ -225,11 +225,11 @@ public:
     reset();
   }
 
-  vector<Food>& getFood() {
+  const vector<Food>& getFood() const {
     return foods;
   };
 
-  vector<Organism>& getGenomes() {
+  const vector<Fish>& getFishes() const {
     return population.genomes;
   };
 
@@ -242,18 +242,18 @@ public:
   }
 
   void update() {
-    for (auto& genome : population.genomes) {
-      genome.perceive(foods);
-      genome.update();
+    for (auto& fish : population.genomes) {
+      fish.perceive(foods);
+      fish.update();
 
       for (auto& food : foods) {
-        float mouthX = genome.position.x + cosf(genome.angle) * 8.f;
-        float mouthY = genome.position.y + sinf(genome.angle) * 8.f;
+        float mouthX = fish.position.x + cosf(fish.angle) * 8.f;
+        float mouthY = fish.position.y + sinf(fish.angle) * 8.f;
         float distX = mouthX - food.position.x;
         float distY = mouthY - food.position.y;
         float distance = sqrt(distX * distX + distY * distY);
         if (distance <= 16 && bool(RANDOM_NUM > FOOD_EAT_DIFFICULTY)) {
-          if (genome.eat()) {
+          if (fish.eat()) {
             food.eaten = bool(RANDOM_NUM > FOOD_RESPAWN_RATE);
             food.position.x = RANDOM_NUM * WORLD_SIZE;
             food.position.y = RANDOM_NUM * WORLD_SIZE;

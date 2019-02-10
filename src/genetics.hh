@@ -3,8 +3,6 @@
 
 #include <vector>
 
-#include "utils.hh"
-
 using namespace std;
 
 using DNA = vector<double>;
