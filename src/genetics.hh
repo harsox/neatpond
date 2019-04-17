@@ -10,23 +10,47 @@ using DNA = vector<double>;
 struct Genome {
   DNA genes;
   float fitnessScore = -1.f;
+
   Genome(DNA genes): genes(genes) {  }
-  DNA crossOver(Genome& partner) const {
-    DNA childGenes;
-    int midpoint = rand() % genes.size();
-    for (auto i = 0; i < genes.size(); i++) {
-      childGenes.push_back(i > midpoint ? genes[i] : partner.genes[i]);
-    }
-    return childGenes;
-  }
+
   virtual void reset() { };
   virtual void update() { };
   virtual float fitness() const = 0;
-  float calculateFitness() {
+
+  inline float calculateFitness() {
     fitnessScore = fitness();
     return fitnessScore;
   }
 };
+
+DNA randomGenes(size_t size) {
+  DNA genes;
+  for (auto j = size; j--;) {
+    genes.push_back(RANDOM_NUM);
+  }
+  return genes;
+}
+
+DNA crossOver(DNA& genesA, DNA& genesB) {
+  DNA offspringGenes;
+  int midpoint = rand() % genesA.size();
+  for (auto i = 0; i < genesA.size(); i++) {
+    offspringGenes.push_back(i > midpoint ? genesA[i] : genesB[i]);
+  }
+  return offspringGenes;
+}
+
+DNA mutate(DNA genes, float mutationRate) {
+  DNA mutatedGenes;
+  for (int j = 0; j < genes.size(); j++) {
+    if (mutationRate > RANDOM_NUM) {
+      mutatedGenes.push_back(RANDOM_NUM);
+    } else {
+      mutatedGenes.push_back(genes[j]);
+    }
+  }
+  return mutatedGenes;
+}
 
 bool sortByFitness(const Genome &genomeA, const Genome &genomeB) {
   return genomeA.fitnessScore < genomeB.fitnessScore;
@@ -35,13 +59,10 @@ bool sortByFitness(const Genome &genomeA, const Genome &genomeB) {
 template<class T>
 struct Population {
   vector<T> genomes;
-  Population(int populationSize, int dnaSize) {
+
+  Population(size_t populationSize, size_t dnaSize) {
     for (auto i = populationSize; i--;) {
-      DNA genes;
-      for (int j = dnaSize; j--;) {
-        genes.push_back(RANDOM_NUM);
-      }
-      genomes.push_back(T(genes));
+      genomes.push_back(T(randomGenes(dnaSize)));
     }
     reset();
   }
@@ -53,38 +74,35 @@ struct Population {
   float reproduce(vector<T>& genomes, float mutationRate) {
     auto numGenomes = genomes.size();
     auto fitnessSum = 0.0f;
-    auto averageFitness = 0.0f;
-
     vector<T> matingPool;
 
     for (auto& g : genomes) {
       fitnessSum += g.calculateFitness();
     }
-    averageFitness = fitnessSum / (float)numGenomes;
 
     sort(genomes.begin(), genomes.end(), sortByFitness);
 
-    do {
+    while (matingPool.size() == 0) {
       for (int i = 0; i < genomes.size(); i++) {
         if (RANDOM_NUM < (i + 1) / (float)numGenomes * 2) {
           matingPool.push_back(genomes[i]);
         }
       }
-    } while (!matingPool.size());
+    }
+
+    genomes.clear();
 
     for (int i = 0; i < numGenomes; i++) {
       int a = rand() % matingPool.size();
       int b = rand() % matingPool.size();
-      DNA genes = matingPool[a].crossOver(matingPool[b]);
-      for (int j = 0; j < genes.size(); j++) {
-        if (mutationRate > RANDOM_NUM) {
-          genes[j] = RANDOM_NUM;
-        }
-      }
-      genomes[i] = T(genes);
+      auto genes = mutate(
+        crossOver(matingPool[a].genes, matingPool[b].genes),
+        mutationRate
+      );
+      genomes.push_back(T(genes));
     }
 
-    return averageFitness;
+    return fitnessSum / (float)numGenomes;
   }
 };
 

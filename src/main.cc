@@ -152,12 +152,11 @@ void runGUI() {
       averageFitnesses.push_back(averageFitness);
       averageColors.push_back({r, g, b});
 
-      int seconds = (now - timeStart) / 1000;
       cout <<
-        "Generation: " << numGenerations << "\n" <<
-        "  Minutes: " << ((float)seconds / 60.0) << "\n" <<
-        "  Top: " << maxFitness << "\n" <<
-        "  Average: " << averageFitness << "\n" <<
+        "Generation: " << numGenerations <<
+        "\n  Minutes: " << ((float)(now - timeStart) / 60000.0) <<
+        "\n  Top: " << maxFitness <<
+        "\n  Average: " << averageFitness <<
       endl;
 
       generationTime = 0;
@@ -196,10 +195,6 @@ void runGUI() {
       }
 
       renderer.present();
-
-      if (speed == SPEED_NORMAL) {
-        SDL_Delay(1000 / 60);
-      }
     }
   }
 

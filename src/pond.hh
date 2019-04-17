@@ -13,8 +13,8 @@ using namespace std;
 const int WORLD_SIZE = 3000;
 const int WORLD_CHUNKS = 10;
 const int GRID_SIZE = WORLD_SIZE / WORLD_CHUNKS;
-const int GENERATION_LIFESPAN = 900;
-const int FISH_AMOUNT = 100;
+const int GENERATION_LIFESPAN = 500;
+const int FISH_AMOUNT = 150;
 const float FISH_MAX_SPEED = 5.0;
 const float MAX_ENERGY = 200;
 const float ENERGY_INCREASE = 50;
@@ -278,9 +278,8 @@ public:
         float(RANDOM_NUM * WORLD_SIZE)
       });
     }
-    for (auto& genome : population.genomes) {
-      genome.reset();
-    }
+
+    population.reset();
     return fitness;
   }
 };
